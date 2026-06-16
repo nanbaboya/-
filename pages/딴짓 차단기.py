@@ -26,60 +26,53 @@ with col2:
 
 st.markdown("---")
 
-# 4. 차단기가 켜져 있을 때만 이탈 감지 실행
+# 4. 차단기가 켜져 있을 때만 알림 감지 스크립트 실행
 if st.session_state.is_running:
-    st.markdown("### 🔒 현재 딴짓 감지 중...")
+    st.markdown("### 🔒 현재 딴짓 알림 감지 중...")
+    st.info("💡 **필수 확인:** 차단기 시작 후, 브라우저 주소창 왼쪽에 뜨는 권한 팝업에서 **[알림 허용]**을 반드시 눌러주셔야 바탕화면 팝업이 작동합니다.")
     
-    # 두 코드를 완벽하게 합친 콤보 스크립트 (window.parent 완전 제거 버전)
-    integrated_clean_script = """
-    <div id="alertBox" style="width: 100%; height: 280px; background-color: #e8f5e9; border: 2px dashed #28a745; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: all 0.3s ease;">
-        <h2 id="mainAlertText" style="color: #28a745; margin: 0; font-family: sans-serif; font-size: 28px;">✅ 집중 모드 활성화 중</h2>
-        <p id="subAlertText" style="color: #6c757d; margin-top: 15px; font-family: sans-serif; font-size: 16px;">다른 탭을 누르거나 창을 내리면 이 구역이 즉시 폭파됩니다.</p>
-    </div>
-
+    # 빨간 화면 UI를 완전히 지우고, 오직 바탕화면 알림 팝업만 발생시키는 스크립트
+    clean_notification_script = """
     <script>
-        const box = document.getElementById('alertBox');
-        const mainText = document.getElementById('mainAlertText');
-        const subText = document.getElementById('subAlertText');
-
-        // [주신 코드 기능 1] 사용자가 다른 탭으로 도망치거나 창을 최소화했을 때 감지
-        document.addEventListener("visibilitychange", () => {
-            if (document.hidden) {
-                // 이탈 시 구역 전체를 빨갛게 폭파
-                box.style.backgroundColor = '#dc3545';
-                box.style.borderColor = '#721c24';
-                mainText.style.color = 'white';
-                mainText.innerText = '🚨 딴짓 감지됨! 🚨';
-                subText.style.color = '#f8d7da';
-                subText.innerText = '화면을 이탈한 것이 감지되었습니다. 즉시 복귀하세요!';
+        (function() {
+            // 앱이 시작되면 브라우저에 알림 권한을 요청합니다.
+            if (window.Notification) {
+                Notification.requestPermission();
             }
-        });
 
-        // [주신 코드 기능 2] 다른 창(카톡, 메모장 등)을 클릭해서 포커스가 빠져나갔을 때 감지
-        window.addEventListener('blur', () => {
-            box.style.backgroundColor = '#dc3545';
-            box.style.borderColor = '#721c24';
-            mainText.style.color = 'white';
-            mainText.innerText = '🚨 딴짓 감지됨! 🚨';
-            subText.style.color = '#f8d7da';
-            subText.innerText = '다른 프로그램 창을 클릭했습니다. 즉시 복귀하세요!';
-        });
+            // 알림을 직접 발송하는 공통 함수
+            function sendAlert() {
+                try {
+                    if (Notification.permission === "granted" || window.Notification) {
+                        new Notification("🚨 딴짓차단기 경고", {
+                            body: "화면을 이탈했습니다! 즉시 업무 화면으로 복귀하세요.",
+                            icon: "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=128&h=128&fit=crop",
+                            tag: "distraction-alert" // 알림이 밀리지 않고 즉시 갱신
+                        });
+                    }
+                } catch (err) {
+                    console.log("알림 발송 제한 우회 처리 중", err);
+                }
+            }
 
-        // 사용자가 원래 화면으로 돌아와서 박스를 클릭하면 다시 초록색(정상)으로 복구
-        box.addEventListener('click', () => {
-            box.style.backgroundColor = '#e8f5e9';
-            box.style.borderColor = '#28a745';
-            mainText.style.color = '#28a745';
-            mainText.innerText = '✅ 집중 모드 활성화 중';
-            subText.style.color = '#6c757d';
-            subText.innerText = '다른 탭을 누르거나 창을 내리면 이 구역이 즉시 폭파됩니다.';
-        });
+            // [기능 1] 다른 탭으로 이동하거나 창을 내렸을 때 감지하여 알림 발송
+            document.addEventListener("visibilitychange", () => {
+                if (document.hidden) {
+                    sendAlert();
+                }
+            });
+
+            // [기능 2] 다른 프로그램 창(카톡, 메모장 등)을 클릭해서 포커스가 나갔을 때 감지하여 알림 발송
+            window.addEventListener('blur', () => {
+                sendAlert();
+            });
+        })();
     </script>
     """
-    # 에러 없이 깔끔하게 iframe 내부에 안착시킵니다.
-    components.html(integrated_clean_script, height=300)
+    # 보이지 않게 처리하여 알림 기능만 백그라운드에서 동작하게 만듭니다.
+    components.html(clean_notification_script, height=0)
     
-    st.warning("⚠️ **실전 테스트:** '차단기 시작'을 누르고 다른 인터넷 탭을 켜거나, 카카오톡 등 다른 창을 클릭한 뒤 돌아와 보세요. 아래 상자가 빨갛게 폭파되어 있습니다.")
+    st.warning("⚠️ **테스트 방법:** 버튼을 누르고 알림 권한을 허용한 뒤, 다른 인터넷 탭을 누르거나 바탕화면을 클릭해 보세요. 화면 우측 하단에 알림 팝업이 바로 생성됩니다.")
 
 else:
     st.write("대기 상태입니다. 상단의 '차단기 시작' 버튼을 누르면 작동합니다.")
