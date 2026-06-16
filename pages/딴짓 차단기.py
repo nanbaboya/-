@@ -25,11 +25,11 @@ with col2:
 
 st.markdown("---")
 
-# 4. 활성화 시 자바스크립트 주입 (가장 에러 없는 방식)
+# 4. 활성화 시 자바스크립트 주입
 if st.session_state.is_running:
     st.markdown("### 🔒 현재 초정밀 딴짓 감지 중...")
 
-    # st.markdown을 활용해 감옥(iframe) 외부인 window.parent에 직접 이벤트를 심습니다.
+    # 모든 아이콘/이미지 주소를 안전한 https:// 로 전면 교체하여 브라우저 차단 우회
     st.markdown("""
         <script>
             if (window.Notification) {
@@ -62,7 +62,7 @@ if st.session_state.is_running:
                     if (Notification.permission === "granted") {
                         new Notification("🚨 딴짓차단기 경고", {
                             body: "화면을 이탈했습니다! 즉시 복귀하세요.",
-                            icon: "https://cdn-icons-png.flaticon.com/512/1828/1828665.png",
+                            icon: "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=128&h=128&fit=crop", // 안전한 HTTPS 이미지로 교체
                             tag: "distraction-alert"
                         });
                     }
@@ -74,8 +74,8 @@ if st.session_state.is_running:
                 window.bgLayer.style.display = 'none';
             });
         </script>
-    """, unsafe_allow_html=True) # <- 이 옵션이 HTML과 스크립트를 에러 없이 실행해 줍니다.
+    """, unsafe_allow_html=True)
 
-    st.warning("⚠️ 버튼을 누른 채로 다른 창을 클릭해 보세요!")
+    st.warning("⚠️ 테스트 방법: '차단기 시작'을 누른 후, 화면 빈 곳을 마우스로 한 번 클릭해 준 다음, 바탕화면이나 카카오톡 등 다른 창을 클릭해 보세요!")
 else:
     st.write("대기 상태입니다. '차단기 시작' 버튼을 누르세요.")
