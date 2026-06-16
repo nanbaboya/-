@@ -4,56 +4,58 @@ import streamlit.components.v1 as components
 # 페이지 설정
 st.set_page_config(page_title="딴짓차단기", page_icon="🚫", layout="centered")
 
-st.title("🚫 딴짓차단기 (보안 우회 버전)")
+st.title("🚫 딴짓차단기 (마우스 가둠 버전)")
 st.markdown("---")
 
-# 시스템 알림창 대신 '소리(Audio)'와 '화면 차단(UI)'을 이용한 무조건 실행 스크립트
-bug_free_script = """
+# Streamlit 내부 가상 틀(iframe) 안에서 마우스가 나가는 것을 감지하는 스크립트
+iframe_lock_script = """
 <script>
-    # 1. 경고음으로 사용할 오디오 생성 (무료 사이렌 사운드)
+    // 1. 알람 소리 설정 (구글 무료 오디오 소스)
     const audio = new Audio('https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg');
-    audio.loop = true; // 돌아올 때까지 무한 반복
+    audio.loop = true;
 
-    # 2. 화면을 가릴 경고 레이어 생성
-    const warningDiv = document.createElement('div');
-    warningDiv.style.position = 'fixed';
-    warningDiv.style.top = '0';
-    warningDiv.style.left = '0';
-    warningDiv.style.width = '100vw';
-    warningDiv.style.height = '100vh';
-    warningDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.95)';
-    warningDiv.style.color = 'white';
-    warningDiv.style.display = 'none';
-    warningDiv.style.flexDirection = 'column';
-    warningDiv.style.justifyContent = 'center';
-    warningDiv.style.alignItems = 'center';
-    warningDiv.style.zIndex = '99999';
-    warningDiv.innerHTML = '<h1 style="font-size: 50px; font-weight: bold; margin-bottom: 20px;">🚨 딴짓 감지됨!! 🚨</h1><h2>즉시 원래 업무 화면으로 복귀하세요.</h2><p style="margin-top: 30px; font-size: 14px; color: #ddd;">이 화면을 클릭하면 경고가 해제됩니다.</p>';
-    window.parent.document.body.appendChild(warningDiv);
+    // 2. 경고 화면 스타일 설정
+    const warningLayer = document.createElement('div');
+    warningLayer.style.position = 'fixed';
+    warningLayer.style.top = '0';
+    warningLayer.style.left = '0';
+    warningLayer.style.width = '100%';
+    warningLayer.style.height = '100%';
+    warningLayer.style.backgroundColor = 'red';
+    warningLayer.style.color = 'white';
+    warningLayer.style.display = 'none';
+    warningLayer.style.flexDirection = 'column';
+    warningLayer.style.justifyContent = 'center';
+    warningLayer.style.alignItems = 'center';
+    warningLayer.style.zIndex = '999999';
+    warningLayer.innerHTML = '<h1 style="font-size: 40px; font-weight: bold;">🚨 마우스 이탈 감지! 🚨</h1><p style="font-size: 20px; margin-top: 20px;">마우스를 즉시 이 화면 안으로 가져오세요!</p>';
+    document.body.appendChild(warningLayer);
 
-    # 3. 사용자가 다른 곳을 클릭하거나 창을 나갔을 때 (blur)
-    window.parent.addEventListener('blur', () => {
-        audio.play().catch(e => console.log("오디오 재생 재생 제한 유도"));
-        warningDiv.style.display = 'flex';
+    // 3. 마우스가 웹 화면 밖으로 나갔을 때 실행 (mouseleave)
+    document.addEventListener('mouseleave', () => {
+        audio.play().catch(e => console.log("오디오 재생 제한 유도"));
+        warningLayer.style.display = 'flex';
     });
 
-    # 4. 사용자가 다시 돌아와서 이 화면을 클릭했을 때 (focus)
-    warningDiv.addEventListener('click', () => {
+    // 4. 마우스가 다시 웹 화면 안으로 들어왔을 때 실행 (mouseenter)
+    document.addEventListener('mouseenter', () => {
         audio.pause();
         audio.currentTime = 0;
-        warningDiv.style.display = 'none';
+        warningLayer.style.display = 'none';
     });
 </script>
 """
 
-# 스크립트 강제 삽입
-components.html(bug_free_script, height=0)
+# HTML 스크립트 실행 (iframe의 크기를 키워 감지 영역을 넓힙니다)
+components.html(iframe_lock_script, height=300)
 
 # 안내 문구
-st.error("### 🔒 초강력 딴짓 감지 모드 가동 중")
+st.error("### 🔒 마우스 잠금 감지기 가동 중")
 st.markdown("""
-이 웹페이지를 켜둔 상태에서 **다른 프로그램(메신저, 웹서핑 등)을 클릭하는 순간** 즉시 작동합니다.
-* 🚨 **증상:** 귀가 찢어지는 경고음 무한 재생 + 전체 화면이 빨간색 경고창으로 잠김.
-* 🔓 **해제 방법:** 빨간색 경고 화면을 마우스로 다시 클릭하면 소리가 꺼집니다.
+💡 **팀원 행동 규칙:**
+1. 이 웹페이지를 모니터 한쪽에 띄워둡니다.
+2. **마우스 커서를 반드시 이 앱 화면(아래 회색 영역 근처)에 올려두어야 합니다.**
+3. 메신저를 켜거나 유튜브를 틀기 위해 마우스를 이 화면 밖으로 던지는 순간 **즉시 강력한 사이렌**이 울립니다.
 """)
-st.warning("⚠️ **테스트 방법:** 코드 배포 후, 화면 빈 곳을 한 번 클릭해 주신 다음, 메신저나 메모장 등 다른 창을 클릭해 보세요!")
+
+st.info("⚠️ **지금 테스트해 보세요:** 마우스를 이 창 아래쪽으로 내렸다가, 인터넷 주소창이나 모니터 바탕화면 쪽으로 빠르게 올려서 화면 밖으로 완전히 빼보세요. 바로 작동합니다.")
