@@ -6,7 +6,7 @@ st.set_page_config(page_title="딴짓차단기", page_icon="🚫", layout="cente
 st.title("🚫 딴짓차단기")
 st.markdown("---")
 
-# 2. 파이썬 버튼을 치우고, Streamlit 리런 에러가 없는 '자바스크립트 순정 버튼' 주입
+# 2. 리런 에러가 없는 순정 자바스크립트 버튼 및 상태창 주입
 st.markdown("""
     <div style="display: flex; gap: 15px; margin-bottom: 25px;">
         <button id="jsStartBtn" style="flex: 1; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer;">▶️ 차단기 시작</button>
@@ -18,18 +18,19 @@ st.markdown("""
     </div>
 
     <script>
-        // 변수 오염 및 중복 방지를 위한 즉시실행함수(IIFE) 처리
         (function() {
-            if (window.Notification) {
-                Notification.requestPermission();
-            }
-
-            // 1. 기존에 만들어진 경고창 레이어가 이미 있다면 완전 삭제 (초기화)
+            // 1. 기존 경고창 엘리먼트 초기화
             if (window.globalBgLayer) {
                 window.globalBgLayer.remove();
             }
 
-            // 2. 경고창 레이어 생성 (단 딱 한 번만 부모 창에 등록)
+            // [구글 무료 알람 사운드 링크] 권한 제한 없는 순정 오디오 객체 생성
+            if (!window.globalAudio) {
+                window.globalAudio = new Audio('https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg');
+                window.globalAudio.loop = true; // 돌아올 때까지 무한 반복
+            }
+
+            // 2. 경고 화면 레이어 생성
             window.globalBgLayer = document.createElement('div');
             window.globalBgLayer.style.position = 'fixed';
             window.globalBgLayer.style.top = '0';
@@ -43,29 +44,29 @@ st.markdown("""
             window.globalBgLayer.style.justifyContent = 'center';
             window.globalBgLayer.style.alignItems = 'center';
             window.globalBgLayer.style.zIndex = '99999';
-            window.globalBgLayer.innerHTML = '<h1 style="font-size: 45px; font-weight: bold; margin-bottom: 20px;">🚨 딴짓 감지! 🚨</h1><h2>시스템 알림이 발송되었습니다. 즉시 복귀하세요.</h2><p style="margin-top: 20px; color: #eee;">이 화면을 마우스로 다시 클릭하면 경고가 숨겨집니다.</p>';
+            window.globalBgLayer.innerHTML = '<h1 style="font-size: 45px; font-weight: bold; margin-bottom: 20px;">🚨 딴짓 감지! 🚨</h1><h2>경고음이 울리고 있습니다. 즉시 복귀하세요.</h2><p style="margin-top: 20px; color: #eee;">이 화면을 마우스로 다시 클릭하면 소리가 꺼집니다.</p>';
             window.parent.document.body.appendChild(window.globalBgLayer);
 
-            // 작동 플래그 상태 기억 변수
             let isRunning = false;
 
-            // 3. 버튼 오브젝트 매핑
             const startBtn = document.getElementById('jsStartBtn');
             const stopBtn = document.getElementById('jsStopBtn');
             const statusBox = document.getElementById('statusBox');
 
-            // [시작 버튼 클릭]
+            // [시작 버튼]
             startBtn.onclick = function() {
                 isRunning = true;
-                statusBox.innerHTML = "현재 상태: 🔴 초정밀 딴짓 감지 가동 중!!";
+                statusBox.innerHTML = "현재 상태: 🔴 초정밀 소리 폭탄 가동 중!!";
                 statusBox.style.backgroundColor = "#fde8e8";
                 statusBox.style.borderColor = "#f8b4b4";
                 statusBox.style.color = "#9b1c1c";
             };
 
-            // [종료 버튼 클릭]
+            // [종료 버튼]
             stopBtn.onclick = function() {
                 isRunning = false;
+                window.globalAudio.pause();
+                window.globalAudio.currentTime = 0;
                 window.globalBgLayer.style.display = 'none';
                 statusBox.innerHTML = "현재 상태: ⚪ 대기 중입니다. '차단기 시작'을 누르세요.";
                 statusBox.style.backgroundColor = "#f8f9fa";
@@ -73,18 +74,36 @@ st.markdown("""
                 statusBox.style.color = "#495057";
             };
 
-            // 4. 감시 센서 (중복 등록 방지를 위해 기존 센서 초기화 후 재등록)
+            // 3. 기존 센서 초기화 후 재등록
             if (window.globalBlurHandler) {
                 window.parent.removeEventListener('blur', window.globalBlurHandler);
             }
 
             window.globalBlurHandler = function() {
-                // 시작 버튼이 눌린 상태에서만 경고창과 알림이 작동하도록 제어
                 if (isRunning) {
+                    // 화면 빨갛게 바꾸고 바로 소리 지르기
                     window.globalBgLayer.style.display = 'flex';
-                    try {
-                        if (Notification.permission === "granted") {
-                            new Notification("🚨 딴짓차단기 경고", {
-                                body: "화면을 이탈했습니다! 즉시 복귀하세요.",
-                                icon: "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=128&h=128&fit=crop",
-                                tag: "
+                    window.globalAudio.play().catch(e => console.log("오디오 재생 트리거"));
+                }
+            };
+
+            window.parent.addEventListener('blur', window.globalBlurHandler);
+
+            // 경고창 클릭 시 소리 끄고 화면 해제
+            window.globalBgLayer.onclick = function() {
+                window.globalAudio.pause();
+                window.globalAudio.currentTime = 0;
+                window.globalBgLayer.style.display = 'none';
+            };
+        })();
+    </script>
+""", unsafe_allow_html=True)
+
+st.warning("⚠️ **작동 및 무한 반복 테스트 방법**")
+st.markdown("""
+1. 컴퓨터 **스피커 소리**를 적당히 키워둡니다.
+2. 녹색 **'▶️ 차단기 시작'** 버튼을 클릭합니다.
+3. 화면 빈 곳을 마우스로 **콕 한 번 클릭**합니다. (브라우저 정책상 웹페이지 소리를 재생하려면 무조건 이 터치 단계를 거쳐야 합니다.)
+4. 다른 프로그램 창(카톡, 메모장 등)을 클릭해 봅니다. **즉시 빨간 화면과 함께 알람 벨소리가 무한 반복**됩니다.
+5. 돌아와서 빨간 화면을 클릭해 소리를 끄고, **'⏹️ 차단기 종료'**를 누르면 해제됩니다. 이 짓을 몇 번을 반복해도 똑같이 완벽하게 작동합니다.
+""")
