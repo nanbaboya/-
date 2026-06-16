@@ -11,7 +11,7 @@ st.markdown("---")
 if 'is_running' not in st.session_state:
     st.session_state.is_running = False
 
-# 3. 제어 버튼 (클릭을 유도하여 브라우저 활성화)
+# 3. 제어 버튼
 col1, col2 = st.columns(2)
 
 with col1:
@@ -30,7 +30,7 @@ st.markdown("---")
 if st.session_state.is_running:
     st.markdown("### 🔒 현재 딴짓 알림 감지 중...")
     
-    # 이탈할 때마다 문구가 랜덤으로 바뀌는 스크립트
+    # 파이썬 주석(#)을 제거하고 자바스크립트 표준 주석(//)으로 교체한 안전한 스크립트
     random_notification_script = """
     <script>
         (function() {
@@ -38,7 +38,7 @@ if st.session_state.is_running:
                 Notification.requestPermission();
             }
 
-            // 🎯 팀원들 킹받게 할 랜덤 알림 문구 셋팅 (원하는 대로 수정 가능!)
+            // 🎯 팀원용 랜덤 알림 문구 세팅
             const warningMessages = [
                 "CCTV는 당신을 지켜보고 있습니다. 당장 복귀하세요.",
                 "지금 보신 거 재밌으셨나요? 이제 일할 시간입니다.",
@@ -46,20 +46,18 @@ if st.session_state.is_running:
                 "팀장님이 뒤에서 걸어오고 계실지도 모릅니다.",
                 "집중력이 흐려지셨군요. 다시 업무 화면을 보세요!",
                 "앗! 딴짓 필터에 딱 걸리셨습니다. 얼른 돌아오세요.",
-                "방금 나간 이탈 기록이 카운트되고 있습니다... 읍읍"
+                "방금 나간 이탈 기록이 카운트되고 있습니다..."
             ];
 
             function sendAlert() {
                 try {
                     if (Notification.permission === "granted") {
-                        // 리스트에서 무작위로 문구 하나 추출
                         const randomIndex = Math.floor(Math.random() * warningMessages.length);
                         const selectedMessage = warningMessages[randomIndex];
 
                         new Notification("🚨 딴짓차단기 경고", {
-                            body: selectedMessage, // 매번 다른 문구 발송
+                            body: selectedMessage,
                             icon: "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=128&h=128&fit=crop",
-                            // tag를 제거하거나 매번 다르게 주어 브라우저가 새 알림으로 인식하게 만듭니다.
                             tag: "alert-" + Date.now() 
                         });
                     }
@@ -81,3 +79,10 @@ if st.session_state.is_running:
             });
         })();
     </script>
+    """
+    components.html(random_notification_script, height=0)
+    
+    st.warning("⚠️ **테스트 방법:** 시작 버튼 누르고 화면을 한 번 클릭한 뒤, 다른 창을 연달아 클릭해 보세요. 클릭할 때마다 매번 새로운 문구로 알림이 쏟아집니다.")
+
+else:
+    st.write("대기 상태입니다. 상단의 '차단기 시작' 버튼을 누르세요.")
