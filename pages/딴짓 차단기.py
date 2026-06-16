@@ -11,8 +11,7 @@ st.markdown("---")
 if 'is_running' not in st.session_state:
     st.session_state.is_running = False
 
-# 3. [핵심 수정] 새로고침 후 브라우저 깨우기용 상호작용 장치
-# 시작 버튼을 순수 Streamlit 파이썬 버튼으로 크게 유지하여 무조건 클릭을 유도합니다.
+# 3. 제어 버튼 (클릭을 유도하여 브라우저 활성화)
 col1, col2 = st.columns(2)
 
 with col1:
@@ -27,29 +26,45 @@ with col2:
 
 st.markdown("---")
 
-# 4. 차단기 가동 및 자바스크립트 주입
+# 4. 차단기 가동 시 랜덤 알림 자바스크립트 주입
 if st.session_state.is_running:
     st.markdown("### 🔒 현재 딴짓 알림 감지 중...")
     
-    clean_notification_script = """
+    # 이탈할 때마다 문구가 랜덤으로 바뀌는 스크립트
+    random_notification_script = """
     <script>
         (function() {
-            // 브라우저 권한 체크 및 재요청
             if (window.Notification) {
                 Notification.requestPermission();
             }
 
+            // 🎯 팀원들 킹받게 할 랜덤 알림 문구 셋팅 (원하는 대로 수정 가능!)
+            const warningMessages = [
+                "CCTV는 당신을 지켜보고 있습니다. 당장 복귀하세요.",
+                "지금 보신 거 재밌으셨나요? 이제 일할 시간입니다.",
+                "월급 루팡 시도 감지! 모니터로 눈을 돌리십시오.",
+                "팀장님이 뒤에서 걸어오고 계실지도 모릅니다.",
+                "집중력이 흐려지셨군요. 다시 업무 화면을 보세요!",
+                "앗! 딴짓 필터에 딱 걸리셨습니다. 얼른 돌아오세요.",
+                "방금 나간 이탈 기록이 카운트되고 있습니다... 읍읍"
+            ];
+
             function sendAlert() {
                 try {
                     if (Notification.permission === "granted") {
+                        // 리스트에서 무작위로 문구 하나 추출
+                        const randomIndex = Math.floor(Math.random() * warningMessages.length);
+                        const selectedMessage = warningMessages[randomIndex];
+
                         new Notification("🚨 딴짓차단기 경고", {
-                            body: "화면을 이탈했습니다! 즉시 업무 화면으로 복귀하세요.",
+                            body: selectedMessage, // 매번 다른 문구 발송
                             icon: "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=128&h=128&fit=crop",
-                            tag: "distraction-alert"
+                            // tag를 제거하거나 매번 다르게 주어 브라우저가 새 알림으로 인식하게 만듭니다.
+                            tag: "alert-" + Date.now() 
                         });
                     }
                 } catch (err) {
-                    console.log("알림 발송 제한 우회 처리 중", err);
+                    console.log("알림 제한 우회 중", err);
                 }
             }
 
@@ -66,10 +81,3 @@ if st.session_state.is_running:
             });
         })();
     </script>
-    """
-    components.html(clean_notification_script, height=0)
-    
-    st.warning("⚠️ **새로고침 후 행동 요령:** 페이지를 새로고침(F5)했다면, 반드시 위의 **[▶️ 차단기 시작]** 버튼을 다시 한 번 꾹 눌러주셔야 브라우저가 잠금에서 깨어나 알림을 정상적으로 보냅니다!")
-
-else:
-    st.write("대기 상태입니다. 상단의 '차단기 시작' 버튼을 누르세요.")
