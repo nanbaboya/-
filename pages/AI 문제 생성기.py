@@ -1,6 +1,6 @@
-import json
 import streamlit as st
-from openai import OpenAI
+from google import genai
+from google.genai import types
 
 st.set_page_config(
     page_title="AI 문제 생성기",
@@ -8,86 +8,41 @@ st.set_page_config(
     layout="wide"
 )
 
-# -------------------------
-# OpenAI 설정
-# -------------------------
-try:
-    api_key = st.secrets["OPENAI_API_KEY"]
-    client = OpenAI(api_key=api_key)
-except Exception:
-    client = None
-
-# -------------------------
-# 문제 생성 함수
-# -------------------------
-def generate_questions(subject, level, count):
-
-    prompt = f"""
-당신은 전문 출제위원입니다.
-
-과목: {subject}
-난이도: {level}
-
-다음 형식의 객관식 문제 {count}개를 JSON으로 생성하세요.
-
-반드시 아래 형식만 출력하세요.
-
-[
- {{
-   "question":"문제",
-   "options":["보기1","보기2","보기3","보기4"],
-   "answer":"정답"
- }}
-]
-
-설명이나 마크다운은 출력하지 마세요.
-"""
-
-    response = client.chat.completions.create(
-        model="gpt-4.1-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": "당신은 정확한 시험 문제를 생성하는 AI입니다."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0.8
-    )
-
-    content = response.choices[0].message.content
-
-    try:
-        return json.loads(content)
-    except Exception:
-        return []
-
-
-# -------------------------
-# UI
-# -------------------------
 st.title("📝 AI 문제 생성기")
-st.caption("AI가 다양한 분야의 객관식 문제를 자동 생성합니다.")
+st.caption("Gemini AI를 활용하여 다양한 문제를 자동 생성합니다.")
 
+# API Key 확인
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    api_key = None
+
+if not api_key:
+    st.error("GEMINI_API_KEY가 설정되지 않았습니다.")
+    st.stop()
+
+# Gemini Client
+client = genai.Client(api_key=api_key)
+
+# 사이드바
 with st.sidebar:
-
     st.header("설정")
 
-    subject = st.selectbox(
-        "과목",
+    topic = st.text_input(
+        "과목 또는 주제",
+        placeholder="예: 중학교 과학"
+    )
+
+    question_type = st.selectbox(
+        "문제 유형",
         [
-            "수학",
-            "과학",
-            "역사",
-            "영어",
-            "일반상식"
+            "객관식",
+            "단답형",
+            "서술형"
         ]
     )
 
-    level = st.selectbox(
+    difficulty = st.selectbox(
         "난이도",
         [
             "쉬움",
@@ -97,7 +52,7 @@ with st.sidebar:
     )
 
     count = st.slider(
-        "문제 수",
+        "문제 개수",
         min_value=1,
         max_value=10,
         value=5
@@ -108,108 +63,85 @@ with st.sidebar:
         use_container_width=True
     )
 
-# -------------------------
-# API 확인
-# -------------------------
-if client is None:
-    st.error("OPENAI_API_KEY가 설정되지 않았습니다.")
-    st.stop()
+# 안내 화면
+if not generate_btn:
+    st.info(
+        """
+        사용 방법
+        
+        1. 과목 또는 주제를 입력하세요.
+        2. 문제 유형을 선택하세요.
+        3. 난이도를 선택하세요.
+        4. 문제 생성을 클릭하세요.
+        """
+    )
 
-# -------------------------
-# 상태 저장
-# -------------------------
-if "questions" not in st.session_state:
-    st.session_state.questions = []
-
+# 문제 생성
 if generate_btn:
+
+    if not topic.strip():
+        st.warning("주제를 입력해주세요.")
+        st.stop()
+
+    prompt = f"""
+당신은 전문 출제자입니다.
+
+다음 조건으로 문제를 생성하세요.
+
+주제: {topic}
+문제 유형: {question_type}
+난이도: {difficulty}
+문제 수: {count}
+
+반드시 아래 형식으로 작성하세요.
+
+문제 1
+...
+정답:
+해설:
+
+문제 2
+...
+정답:
+해설:
+
+모든 문제는 학습에 적합하고 명확하게 작성하세요.
+"""
 
     with st.spinner("AI가 문제를 생성하는 중입니다..."):
 
         try:
-            questions = generate_questions(
-                subject,
-                level,
-                count
+            response = client.models.generate_content(
+                model="gemini-2.5-flash-lite",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.8,
+                    max_output_tokens=3000
+                )
             )
 
-            if questions:
-                st.session_state.questions = questions
-                st.success("문제가 생성되었습니다.")
-            else:
+            result = response.text
+
+            if not result:
                 st.error("문제 생성에 실패했습니다.")
+                st.stop()
+
+            st.success("문제 생성 완료!")
+
+            st.subheader("생성된 문제")
+
+            st.text_area(
+                "결과",
+                value=result,
+                height=500
+            )
+
+            st.download_button(
+                label="📥 TXT 다운로드",
+                data=result,
+                file_name="ai_questions.txt",
+                mime="text/plain"
+            )
 
         except Exception as e:
-            st.error(f"오류 발생: {e}")
-
-# -------------------------
-# 문제 표시
-# -------------------------
-questions = st.session_state.questions
-
-if questions:
-
-    st.subheader("📚 생성된 문제")
-
-    user_answers = []
-
-    for idx, q in enumerate(questions):
-
-        st.markdown(f"### 문제 {idx+1}")
-
-        st.write(q["question"])
-
-        answer = st.radio(
-            "답 선택",
-            q["options"],
-            key=f"q_{idx}"
-        )
-
-        user_answers.append(answer)
-
-        st.divider()
-
-    # -------------------------
-    # 채점
-    # -------------------------
-    if st.button("채점하기", type="primary"):
-
-        score = 0
-
-        st.subheader("결과")
-
-        for idx, q in enumerate(questions):
-
-            correct = q["answer"]
-
-            if user_answers[idx] == correct:
-                score += 1
-                st.success(
-                    f"문제 {idx+1}: 정답"
-                )
-            else:
-                st.error(
-                    f"문제 {idx+1}: 오답 "
-                    f"(정답: {correct})"
-                )
-
-        st.metric(
-            "점수",
-            f"{score}/{len(questions)}"
-        )
-
-    # -------------------------
-    # 다운로드
-    # -------------------------
-    st.download_button(
-        "문제 JSON 다운로드",
-        data=json.dumps(
-            questions,
-            ensure_ascii=False,
-            indent=2
-        ),
-        file_name="quiz.json",
-        mime="application/json"
-    )
-
-else:
-    st.info("왼쪽 메뉴에서 문제를 생성해보세요.")
+            st.error(f"API 오류가 발생했습니다.\n\n{str(e)}")
